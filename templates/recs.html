@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block content %} 
+{% if not artists %}
+
+<div class="container">
+  <div class="mt-1">
+    <h1>reccommendation page</h1>
+  </div>
+  <p class="lead">You need to log in to see this page</p>
+
+  <a type="button" class="btn btn-default" href="/auth">Login</a>
+</div>
+
+{% else %}
+
+<div class="container">
+  <h1>reccommendation Page</h1>
+
+  <hr class="half-rule" />
+
+  {% for artist in artists %}
+  <div class="row">
+    <p>{{ artist }}</p>
+  </div>
+  {% endfor %}
+</div>
+
+{% endif %} {% endblock %}
