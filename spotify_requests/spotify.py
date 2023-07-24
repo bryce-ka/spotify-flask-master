@@ -124,9 +124,10 @@ def get_artist(auth_header, artist_id):
 
 
 # https://developer.spotify.com/web-api/get-several-artists/
-def get_several_artists(list_of_ids):
-    url = "{}/?ids={ids}".format(GET_ARTIST_ENDPOINT, ids=','.join(list_of_ids))
-    resp = requests.get(url)
+def get_several_artists(auth_header, list_of_ids):
+    url = "{}/?ids={ids}".format("https://api.spotify.com/v1/artists", ids=','.join(list_of_ids))
+    resp = requests.get(url, headers=auth_header)
+    
     return resp.json()
 
 # https://developer.spotify.com/web-api/get-artists-albums/
@@ -207,7 +208,7 @@ def get_users_top(auth_header, t, tr, lim):
     base_url = "{}/{type}".format(USER_TOP_ARTISTS_AND_TRACKS_ENDPOINT, type=t)
     url = "{}?time_range={}&limit={}".format(base_url, tr, lim)
     resp = requests.get(url, headers=auth_header)
-    print(resp)
+    # print(resp)
     return resp.json()
 
 # https://developer.spotify.com/web-api/web-api-personalization-endpoints/get-recently-played/
