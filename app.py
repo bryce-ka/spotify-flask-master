@@ -1,6 +1,7 @@
 from flask import Flask, request, redirect, g, render_template, session, jsonify, make_response
 from spotify_requests import spotify
 import os
+import pandas as pd
 SSK = os.urandom(12)
 import json
 artist_dict = {}
@@ -126,7 +127,7 @@ def you():
                 temp_image = artist_infos['artists'][id]['images'][1]['url']
                 your_artists['ids'][temp_id]= {"id": temp_id, "name": temp_name, "interest": temp_interest, "image": temp_image}
             need_images = need_images[num_ids+1:]
-            print(your_artists['ids'].keys())
+            # print(your_artists['ids'])
         
         # return redirect(
         # 'http://127.0.0.1:5000/recs?token=' + access_token,
@@ -156,41 +157,53 @@ def get_recs():
         num_items = 50
         #dictionary with potential artist recomendations 
         ea_dict = {}
-
-        
-        # recs = {}
         easy_list = []
+
+        user_preferences = you()
+        # get user preferences/interests
+        
+        user_preferences = json.loads(user_preferences.get_data())
+        #create a table  of the artists in user_preferences and their info then save it as an htmnl file
+        html = pd.DataFrame.from_dict(user_preferences['ids'], orient='index') 
+        html = html.sort_values(by=['interest'])
+        html = html.to_html()
+        #save the html to a file
+        text_file = open("templates/user_preferences.html", "w")
+        text_file.write(html)
+        text_file.close()
+
+
+        #use the spotify api to get related artists for each artist in the user_preferences dictionary and add related artists and their info to a dict called rec_dict
+        for key, val in user_preferences['ids'].items():
+            related_artists = spotify.get_related_artists(auth_header, key)
+            for related in related_artists['artists']:
+                if related['id'] not in user_preferences['ids'].keys():
+                    if related['id'] not in ea_dict.keys():
+                        ea_dict[related['id']]= {"name": related['name'], "freq": 1, "popularity": related['popularity'], "genres": related['genres'], "link": related['uri']}
+                    else:
+                        artist_info = ea_dict[related['id']] 
+                        artist_info['freq'] += 1
+                        ea_dict[related['id']] = artist_info
+        
+
+        #create a table  of the artists in ea_dict and their info
         recommended_artists = {'ids' :{}}
-        for key, val in artist_dict.items():
-            if val[1] != 1:
-                conf_level = confidence(val[1])
-                # recs[key] = val
-                #geting related artists for recs
-                related_artists = spotify.get_related_artists(auth_header, key)
-                for related in related_artists['artists']:
-                    if related['id'] not in recommended_artists['ids'].keys():
-                        recommended_artists['ids'][related['id']]={"id": related['id'], "name": related['name'], "popularity": related['popularity'], "confidence": conf_level, "genres": related['genres'], "link": related['uri']}
-                        easy_list.append((related['id'], related['popularity']))
-                        #need to make links functional 
-                        
-        #determine reccommendations- done and i think theyre good!
+        for key, val in ea_dict.items():
+            if val['freq'] != 1:
+                conf_level = confidence(val['freq'])
+                recommended_artists['ids'][key]={"id": key, "name": val['name'], "interest": conf_level, "popularity": val['popularity'], "genres": val['genres'], "link": val['link']}
         
-        #orders based on popularity 
-        easy_list.sort(key=lambda a: a[1], reverse = True)
-        
-        # for index in range(len(easy_list)):
-        #     new_id = (recommended_artists['ids'][easy_list[index][0]]['name'], easy_list[index][1])
-        #     easy_list[index] = new_id
-        print(easy_list) #human readable list
-        
-        final_recs = {'recommendations':{}}
-        for artist in easy_list:
-            final_recs['recommendations'][artist[1]]= recommended_artists['ids'][artist[0]]
-            
-         
-        # print(easy_list)
-        # print(final_recs)
-        return jsonify(final_recs)
+        #format it as html to be displayed in a browser
+        html = pd.DataFrame.from_dict(recommended_artists['ids'], orient='index')
+        html = html.sort_values(by=['interest', 'popularity'])
+        #save the html to a file
+        html = html.to_html()
+        text_file = open("templates/recommended_artists.html", "w")
+        text_file.write(html)
+        text_file.close()
+
+        #convert recommended artists to a json object and return it
+        return jsonify(recommended_artists)
         
     else:
         return "Error: No access token provided. Please login through E-AI."
